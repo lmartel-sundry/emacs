@@ -2,18 +2,22 @@
 (message "CHECKING FOR PACKAGES...")
 
 (setq package-list '(
+                     exec-path-from-shell
                      solarized-theme
                      help+ help-fns+ help-mode+
+                     org
+                     iedit
                      flyspell flycheck ; find-file-in-project
                      smex ido-vertical-mode ; ido-ubiquitous
-                     paredit ; smartparens
+                     smartparens ; paredit
                      auctex reftex
-                     robe company enh-ruby-mode
-                     haskell-mode
+                     robe company enh-ruby-mode rvm
+                     haskell-mode flycheck-haskell company-ghc
                      markdown-mode
                      ; magit
                      ; evil helm
-                     ; 4clojure clojure-mode
+                     4clojure clojure-mode
+                     typescript-mode tss
                     ))
 
 ; repositories
@@ -22,6 +26,7 @@
                          ("marmalade" . "http://marmalade-repo.org/packages/")
                          ("melpa" . "http://melpa.milkbox.net/packages/")
                          ("melpa-stable" . "http://stable.melpa.org/packages/")
+                         ("org" . "http://orgmode.org/elpa/")
                         ))
 
 ; activate all the packages (in particular autoloads)
@@ -36,9 +41,31 @@
   (unless (package-installed-p package)
     (package-install package)))
 
+
+; Load $PATH properly even if launched from OSX
+(when (memq window-system '(mac ns))
+  (exec-path-from-shell-initialize))
+
 ;;; CUSTOMIZATION
 (message "LOADING CUSTOM SETTINGS...")
+
+;; Visual stuff
 (load-theme 'solarized-dark t)
+(if (fboundp 'tool-bar-mode) (tool-bar-mode -1))
+(if (fboundp 'menu-bar-mode) (menu-bar-mode -1))
+
+
+;; Global shortcuts, inspired by Yegge's Effective Emacs
+(global-set-key "\C-x\C-m" 'execute-extended-command)
+(global-set-key "\C-c\C-m" 'execute-extended-command)
+
+(global-set-key "\C-w" 'backward-kill-word)
+(global-set-key "\C-x\C-k" 'kill-region)
+(global-set-key "\C-c\C-k" 'kill-region)
+
+(global-set-key "\M-s" 'isearch-forward-regexp)
+(global-set-key "\M-r" 'isearch-backward-regexp)
+
 
 ; Die tabs die
 (setq-default indent-tabs-mode nil)
@@ -104,16 +131,10 @@
     (message "Aborting")))
 
 ; Smartparens default config
-; (require 'smartparens-config)
+(require 'smartparens-config)
 
-; Paredit
-(autoload 'enable-paredit-mode "paredit" "Turn on pseudo-structural editing of Lisp code." t)
-    (add-hook 'emacs-lisp-mode-hook       #'enable-paredit-mode)
-    (add-hook 'eval-expression-minibuffer-setup-hook #'enable-paredit-mode)
-    (add-hook 'ielm-mode-hook             #'enable-paredit-mode)
-    (add-hook 'lisp-mode-hook             #'enable-paredit-mode)
-    (add-hook 'lisp-interaction-mode-hook #'enable-paredit-mode)
-    (add-hook 'scheme-mode-hook           #'enable-paredit-mode)
+; Clojure-mode
+(add-hook 'clojure-mode-hook #'smartparens-strict-mode)
 
 ; Flycheck
 (add-hook 'after-init-hook #'global-flycheck-mode)
@@ -123,6 +144,8 @@
 
 ; Company mode
 (add-hook 'after-init-hook 'global-company-mode)
+(eval-after-load 'company
+  '(add-to-list 'company-backends 'company-ghc))
 
 ;; LaTeX config
 ; AUCTex
@@ -140,6 +163,10 @@
 
 
 ;; Ruby config
+; Use rvm, not system ruby
+(require 'rvm)
+(rvm-use-default)
+
 ; Enh-ruby-mode
 (autoload 'enh-ruby-mode "enh-ruby-mode" "Major mode for ruby files" t)
 (add-to-list 'auto-mode-alist '("\\.rb$" . enh-ruby-mode))
@@ -159,9 +186,21 @@
   '(push 'company-robe company-backends))
 
 
+;; Typescript config
+(require 'tss)
+(setq tss-popup-help-key "C-:")
+(setq tss-jump-to-definition-key "C->")
+(setq tss-implement-definition-key "C-c i")
+(tss-config-default)
+(add-hook 'typescript-mode-hook 'tss-setup-current-buffer)
+
 ;; Haskell config
 ; haskell-mode
 (add-hook 'haskell-mode-hook 'haskell-indentation-mode)
+; (setq haskell-process-type 'stack-ghci)
+(eval-after-load 'flycheck
+  '(add-hook 'flycheck-mode-hook #'flycheck-haskell-setup))
+
 
 ;; Markdown config
 ; markdown-mode
@@ -177,7 +216,14 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- )
+ '(company-backends
+   (quote
+    (capf company-robe company-capf company-bbdb company-nxml company-css company-eclim company-semantic company-clang company-xcode company-cmake company-capf
+          (company-dabbrev-code company-gtags company-etags company-keywords)
+          company-oddmuse company-files company-dabbrev)))
+ '(company-idle-delay 0)
+ '(flycheck-idle-change-delay 0)
+ '(haskell-check-command "hlint"))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
